@@ -15,8 +15,7 @@
 </p>
 
 <p align="center">
-  <a href="https://raihanbaskara.github.io/Smart-Elektromagnetik-Berbasis-IoT-untuk-Tugas-MK-Medan-Elektromagnetik/"><b>🌐 Buka Live Dashboard Web (GitHub Pages)</b></a> •
-  <a href="docs/Laporan_Akhir_Medan_Elektromagnetik_FINAL.docx"><b>📄 Unduh Laporan Lengkap (.docx)</b></a>
+  <a href="https://raihanbaskara.github.io/Smart-Elektromagnetik-Berbasis-IoT-untuk-Tugas-MK-Medan-Elektromagnetik/"><b>🌐 Buka Live Dashboard Web (GitHub Pages)</b></a>
 </p>
 
 ---

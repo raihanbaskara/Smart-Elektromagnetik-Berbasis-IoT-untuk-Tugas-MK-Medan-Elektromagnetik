@@ -21,7 +21,8 @@ Desktop.ini
 $RECYCLE.BIN/
 .DS_Store
 
-# Office / Word lock files
+# Office / Word files
+*.docx
 ~$*.docx
 ~$*.xlsx
 ~$*.pptx
