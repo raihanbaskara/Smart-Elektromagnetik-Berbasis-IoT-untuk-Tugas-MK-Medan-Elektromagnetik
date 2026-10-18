@@ -33,7 +33,6 @@
 - [Panduan Instalasi & Penggunaan](#-panduan-instalasi--penggunaan)
 - [Hasil Pengujian & Analisis Efisiensi](#-hasil-pengujian--analisis-efisiensi)
 - [Tim Pengembang & Pembimbing](#-tim-pengembang--pembimbing)
-- [Daftar Pustaka](#-daftar-pustaka)
 
 ---
 
@@ -51,15 +50,22 @@ Sistem terdiri atas:
 
 ---
 
-## 📸 Galeri Visual & Desain
+## 📸 Galeri Desain & Antarmuka Sistem
 
+### 1. Diagram Balok Sistem
+<p align="center">
+  <img src="docs/assets/diagram_balok_sistem.png" alt="Diagram Balok Sistem" width="550px" style="border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.12);" />
+</p>
+
+### 2. Desain 3D CAD Transmisi Mekanik (Autodesk Inventor / Fusion 360)
 | Desain 3D CAD Tampak Samping | Desain 3D CAD Tampak Depan |
 | :---: | :---: |
-| <img src="docs/assets/cad_side_view.png" alt="CAD Side View" width="400px"/> | <img src="docs/assets/cad_front_view.png" alt="CAD Front View" width="400px"/> |
+| <img src="docs/assets/cad_tampak_samping.png" alt="CAD Tampak Samping" width="400px" style="border-radius: 8px;"/> | <img src="docs/assets/cad_tampak_depan.png" alt="CAD Tampak Depan" width="400px" style="border-radius: 8px;"/> |
 
-| Monitoring Real-Time & Gauge Sensor | Kontrol Kecepatan PWM & 3 Modul Relay |
-| :---: | :---: |
-| <img src="docs/assets/dashboard_overview.png" alt="Dashboard Overview" width="400px"/> | <img src="docs/assets/dashboard_controls.png" alt="Dashboard Controls" width="400px"/> |
+### 3. Antarmuka Web Dashboard Monitoring & Switching IoT
+<p align="center">
+  <img src="docs/assets/dashboard_monitoring.png" alt="Dashboard Monitoring Real-Time" width="420px" style="border-radius: 14px; box-shadow: 0 6px 20px rgba(0,0,0,0.15);" />
+</p>
 
 ---
 
@@ -294,20 +300,6 @@ Proyek ini disusun dan diimplementasikan oleh mahasiswa S1 Pendidikan Teknik Ele
 **Dosen Pengampu Mata Kuliah:**  
 **Hanif Rifai Adha, S.Pd., M.T.**  
 *Dosen Departemen Teknik Elektro dan Informatika — Universitas Negeri Malang*
-
----
-
-## 📚 Daftar Pustaka
-
-1. Avila Bernal, A. G., & Linares García, L. E. (2012). The modelling of an electromagnetic energy harvesting architecture. *Applied Mathematical Modelling*, 36(10), 4728–4741.
-2. Gierczak, M., Markowski, P. M., & Dziedzic, A. (2022). The Modeling of Magnetic Fields in Electromagnetic Microgenerators Using the Finite Element Method. *Energies*, 15(3), 1014.
-3. Lee, H.-J., Yang, J., & Ahn, D. (2024). Power enhancement of vibration energy harvesters by way of magnetic flux gradient analysis of electromagnetic induction. *Journal of Science: Advanced Materials and Devices*, 9(4), 100791.
-4. Miyake, A., Mitamura, H., Kawachi, S., Tokunaga, M., Kimura, K., Kimura, T., Kihara, T., & Tachibana, M. (2020). Capacitive detection of magnetostriction, dielectric constant, and magneto-caloric effects in pulsed magnetic fields. *arXiv preprint arXiv:2009.02870*.
-5. Ocampo, J. Q., Galing, G. C., Mendioro, S. B. D., Montero, A. T., & Roy, F. A. Jr. (2026). A critical review of homopolar generators: Design, efficiency, modelling, and practical viability. *IEM Journal - The Institution of Engineers, Malaysia*, 87(1), 44–55.
-6. Teng, J., Cao, Z., Ren, C., Xu, J., Guo, X., & Ye, X. (2025). Efficient energy harvesting from broadband low-frequency vibrations via 3D-interdigital electrostatic generator. *Applied Energy*, 388, 125701.
-7. Wen, Z., Zhang, H., & Mueller, M. (2022). High Temperature Superconducting Flux Pumps for Contactless Energization. *Crystals*, 12(6), 766.
-8. Zhou, K., Wang, X., Wang, L., Duan, C., Zhang, Y., Zhao, L., & Maeda, R. (2024). Self-powered wireless sensing system with cylindrical high voltage side electric field energy harvesting by discharge circuit. *Sensors and Actuators A: Physical*, 380, 116047.
-9. Zhou, X., Wang, K., Li, S., Wang, Y., Sun, D., Wang, L., He, Z., Tang, W., Liu, H., Jin, X., & Li, Z. (2024). An ultra-compact lightweight electromagnetic generator enhanced with Halbach magnet array and printed triphase windings. *Applied Energy*, 353, 122075.
 
 ---
 
