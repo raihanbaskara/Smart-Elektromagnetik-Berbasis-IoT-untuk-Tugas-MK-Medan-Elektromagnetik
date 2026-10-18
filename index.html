@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Smart EM Generator</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+function loadMQTTFallback(){
+  const s=document.createElement('script');
+  s.src='https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js';
+  s.onload=()=>{ if(typeof initMQTT==='function') initMQTT(); };
+  s.onerror=()=>{
+    const s2=document.createElement('script');
+    s2.src='https://cdn.jsdelivr.net/npm/mqtt@5.10.1/dist/mqtt.min.js';
+    s2.onload=()=>{ if(typeof initMQTT==='function') initMQTT(); };
+    s2.onerror=()=>{ document.getElementById('mqttStatus').textContent='MQTT lib gagal load!'; };
+    document.head.appendChild(s2);
+  };
+  document.head.appendChild(s);
+}
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mqtt/5.10.1/mqtt.min.js"
+  crossorigin="anonymous"
+  onerror="loadMQTTFallback()"></script>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#e0e5ec;font-family:'Nunito',sans-serif;min-height:100vh;padding:16px}
+:root{
+  --bg:#e0e5ec;--s1:#a3b1c6;--s2:#ffffff;
+  --acc:#4f8ef7;--green:#22c55e;--red:#ef4444;
+  --amber:#f59e0b;--purple:#a855f7;
+  --t1:#3d4f6e;--t2:#7a8eac;
+}
+.neu{box-shadow:6px 6px 14px var(--s1),-6px -6px 14px var(--s2)}
+.neu-sm{box-shadow:3px 3px 8px var(--s1),-3px -3px 8px var(--s2)}
+.neu-in{box-shadow:inset 4px 4px 10px var(--s1),inset -4px -4px 10px var(--s2)}
+.neu-in-sm{box-shadow:inset 2px 2px 6px var(--s1),inset -2px -2px 6px var(--s2)}
+.neu-btn{background:var(--bg);box-shadow:4px 4px 10px var(--s1),-4px -4px 10px var(--s2);transition:all .15s;cursor:pointer;border:none;outline:none}
+.neu-btn:active{box-shadow:inset 3px 3px 8px var(--s1),inset -1px -1px 4px var(--s2)}
+.led{width:10px;height:10px;border-radius:50%;background:#c8d0dc;box-shadow:inset 1px 1px 3px #fff;transition:all .3s}
+.led.green{background:#22c55e;box-shadow:0 0 8px #22c55e,0 0 20px #22c55e55}
+.led.blue{background:#4f8ef7;box-shadow:0 0 8px #4f8ef7,0 0 20px #4f8ef755}
+.led.amber{background:#f59e0b;box-shadow:0 0 8px #f59e0b,0 0 20px #f59e0b55}
+.led.red{background:#ef4444;box-shadow:0 0 8px #ef4444,0 0 20px #ef444455}
+.led.purple{background:#a855f7;box-shadow:0 0 8px #a855f7,0 0 20px #a855f755}
+.tog-track{position:relative;width:54px;height:28px;border-radius:14px;background:var(--bg);box-shadow:inset 3px 3px 7px var(--s1),inset -3px -3px 7px var(--s2);cursor:pointer;transition:.3s}
+.tog-track.on{background:linear-gradient(135deg,#4f8ef7,#2563eb);box-shadow:inset 2px 2px 5px #1d4ed8,inset -1px -1px 3px #93c5fd}
+.tog-thumb{position:absolute;top:4px;left:4px;width:20px;height:20px;border-radius:50%;background:var(--bg);box-shadow:2px 2px 5px var(--s1),-1px -1px 3px var(--s2);transition:transform .3s cubic-bezier(.4,0,.2,1)}
+.tog-track.on .tog-thumb{transform:translateX(26px);background:#fff;box-shadow:1px 1px 4px #93c5fd}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pulse-glow{0%,100%{opacity:.7;transform:scale(1)}50%{opacity:1;transform:scale(1.08)}}
+.pulse{animation:pulse-glow 2s ease-in-out infinite}
+@keyframes flow{0%{stroke-dashoffset:200}100%{stroke-dashoffset:0}}
+.energy-line{stroke-dasharray:8 4;animation:flow 1s linear infinite}
+.energy-line.off{animation:none;opacity:.2}
+.bar-fill{transition:width .6s cubic-bezier(.4,0,.2,1)}
+.badge{display:inline-flex;align-items:center;gap:5px;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:800;letter-spacing:.04em}
+.badge-green{background:#dcfce7;color:#15803d}
+.badge-gray{background:#f1f5f9;color:#64748b}
+.badge-red{background:#fee2e2;color:#dc2626}
+.badge-blue{background:#dbeafe;color:#1d4ed8}
+.badge-amber{background:#fef3c7;color:#92400e}
+.badge-purple{background:#f3e8ff;color:#7e22ce}
+.mono{font-family:'JetBrains Mono',monospace}
+.log-wrap{font-family:'JetBrains Mono',monospace;font-size:10.5px}
+.log-info{color:#4f8ef7}.log-ok{color:#22c55e}.log-warn{color:#f59e0b}.log-err{color:#ef4444}.log-sys{color:#a855f7}
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--s1);border-radius:4px}
+input[type=number]{-moz-appearance:textfield}
+input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appearance:none}
+input[type=range]{-webkit-appearance:none;appearance:none;height:6px;border-radius:3px;background:var(--bg);box-shadow:inset 2px 2px 5px var(--s1),inset -2px -2px 5px var(--s2);outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;border-radius:50%;background:var(--bg);box-shadow:3px 3px 7px var(--s1),-2px -2px 5px var(--s2);cursor:pointer;transition:.2s}
+input[type=range]::-webkit-slider-thumb:active{box-shadow:inset 2px 2px 5px var(--s1),inset -1px -1px 3px var(--s2)}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-5">
+  <div class="flex items-center gap-3">
+    <div class="w-12 h-12 rounded-2xl neu flex items-center justify-center">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#4f8ef7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+      </svg>
+    </div>
+    <div>
+      <h1 class="text-xl font-black text-[var(--t1)]">Smart <span class="text-[var(--acc)]">EM</span> Generator</h1>
+      <p class="text-[11px] text-[var(--t2)] font-700">Electromagnetic Energy Monitoring System</p>
+    </div>
+  </div>
+  <div class="flex items-center gap-2 flex-wrap">
+    <div class="neu-in-sm rounded-2xl px-3 py-2 flex items-center gap-2">
+      <div id="mqttLed" class="led"></div>
+      <span id="mqttStatus" class="text-[11px] font-700 text-[var(--t2)]">Connecting…</span>
+    </div>
+    <div class="neu-in-sm rounded-xl px-3 py-2">
+      <span id="clockEl" class="mono text-xs font-600 text-[var(--t2)]">--:--:--</span>
+    </div>
+    <button onclick="reconnectMQTT()" class="neu-btn rounded-xl px-3 py-2 text-xs font-700 text-[var(--acc)]">⟳ Reconnect</button>
+  </div>
+</header>
+
+<!-- MQTT CONFIG -->
+<div class="neu rounded-3xl p-4 mb-5">
+  <div class="flex flex-wrap gap-3 items-end">
+    <div class="flex-1 min-w-[160px]">
+      <label class="text-[10px] font-800 text-[var(--t2)] uppercase tracking-widest block mb-1">Subscribe Topic</label>
+      <input id="subTopic" value="smartem/ina219/data" class="w-full neu-in rounded-xl px-3 py-2 text-xs font-600 text-[var(--t1)] bg-[var(--bg)] outline-none mono"/>
+    </div>
+    <div class="flex-1 min-w-[160px]">
+      <label class="text-[10px] font-800 text-[var(--t2)] uppercase tracking-widest block mb-1">Publish Topic</label>
+      <input id="pubTopic" value="smartem/control" class="w-full neu-in rounded-xl px-3 py-2 text-xs font-600 text-[var(--t1)] bg-[var(--bg)] outline-none mono"/>
+    </div>
+    <div>
+      <label class="text-[10px] font-800 text-[var(--t2)] uppercase tracking-widest block mb-1">Client ID</label>
+      <div class="neu-in-sm rounded-xl px-3 py-2"><span id="clientIdEl" class="mono text-xs text-[var(--t2)]">—</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ROW 1: SENSOR GAUGES -->
+<div class="grid grid-cols-3 gap-4 mb-5">
+  <!-- Voltage -->
+  <div class="neu rounded-3xl p-4 flex flex-col items-center">
+    <div class="flex items-center justify-between w-full mb-2">
+      <span class="text-[10px] font-800 text-[var(--t2)] uppercase tracking-wider">Tegangan</span>
+      <span id="voltBadge" class="badge badge-gray">—</span>
+    </div>
+    <div class="relative w-28 h-28">
+      <svg viewBox="0 0 120 120" class="w-full h-full -rotate-90">
+        <circle cx="60" cy="60" r="48" fill="none" stroke="#d1d9e6" stroke-width="10"/>
+        <circle id="voltArc" cx="60" cy="60" r="48" fill="none" stroke="#4f8ef7" stroke-width="10" stroke-linecap="round" stroke-dasharray="301.6" stroke-dashoffset="301.6" style="transition:stroke-dashoffset .7s cubic-bezier(.4,0,.2,1)"/>
+      </svg>
+      <div class="absolute inset-0 flex flex-col items-center justify-center">
+        <span id="voltVal" class="mono text-2xl font-900 text-[var(--t1)]">0.00</span>
+        <span class="text-[9px] font-700 text-[var(--t2)]">VOLT</span>
+      </div>
+    </div>
+    <div class="flex justify-between w-full text-[10px] text-[var(--t2)] font-600 mt-2">
+      <span>Min <span id="voltMin" class="text-[var(--t1)] font-700">—</span></span>
+      <span>Max <span id="voltMax" class="text-[var(--t1)] font-700">—</span></span>
+    </div>
+  </div>
+  <!-- Current -->
+  <div class="neu rounded-3xl p-4 flex flex-col items-center">
+    <div class="flex items-center justify-between w-full mb-2">
+      <span class="text-[10px] font-800 text-[var(--t2)] uppercase tracking-wider">Arus</span>
+      <span id="currBadge" class="badge badge-gray">—</span>
+    </div>
+    <div class="relative w-28 h-28">
+      <svg viewBox="0 0 120 120" class="w-full h-full -rotate-90">
+        <circle cx="60" cy="60" r="48" fill="none" stroke="#d1d9e6" stroke-width="10"/>
+        <circle id="currArc" cx="60" cy="60" r="48" fill="none" stroke="#22c55e" stroke-width="10" stroke-linecap="round" stroke-dasharray="301.6" stroke-dashoffset="301.6" style="transition:stroke-dashoffset .7s cubic-bezier(.4,0,.2,1)"/>
+      </svg>
+      <div class="absolute inset-0 flex flex-col items-center justify-center">
+        <span id="currVal" class="mono text-2xl font-900 text-[var(--t1)]">0.00</span>
+        <span class="text-[9px] font-700 text-[var(--t2)]">mA</span>
+      </div>
+    </div>
+    <div class="flex justify-between w-full text-[10px] text-[var(--t2)] font-600 mt-2">
+      <span>Min <span id="currMin" class="text-[var(--t1)] font-700">—</span></span>
+      <span>Max <span id="currMax" class="text-[var(--t1)] font-700">—</span></span>
+    </div>
+  </div>
+  <!-- Power -->
+  <div class="neu rounded-3xl p-4 flex flex-col items-center">
+    <div class="flex items-center justify-between w-full mb-2">
+      <span class="text-[10px] font-800 text-[var(--t2)] uppercase tracking-wider">Daya</span>
+      <span id="powBadge" class="badge badge-gray">—</span>
+    </div>
+    <div class="relative w-28 h-28">
+      <svg viewBox="0 0 120 120" class="w-full h-full -rotate-90">
+        <circle cx="60" cy="60" r="48" fill="none" stroke="#d1d9e6" stroke-width="10"/>
+        <circle id="powArc" cx="60" cy="60" r="48" fill="none" stroke="#f59e0b" stroke-width="10" stroke-linecap="round" stroke-dasharray="301.6" stroke-dashoffset="301.6" style="transition:stroke-dashoffset .7s cubic-bezier(.4,0,.2,1)"/>
+      </svg>
+      <div class="absolute inset-0 flex flex-col items-center justify-center">
+        <span id="powVal" class="mono text-2xl font-900 text-[var(--t1)]">0.00</span>
+        <span class="text-[9px] font-700 text-[var(--t2)]">mW</span>
+      </div>
+    </div>
+    <div class="flex justify-between w-full text-[10px] text-[var(--t2)] font-600 mt-2">
+      <span>Min <span id="powMin" class="text-[var(--t1)] font-700">—</span></span>
+      <span>Max <span id="powMax" class="text-[var(--t1)] font-700">—</span></span>
+    </div>
+  </div>
+</div>
+
+<!-- ROW 2: GRAFIK REALTIME -->
+<div class="neu rounded-3xl p-5 mb-5">
+  <div class="flex items-center justify-between mb-3">
+    <h3 class="text-sm font-800 text-[var(--t1)]">Grafik Real-Time</h3>
+    <div class="flex gap-3 text-[10px] font-700">
+      <span class="flex items-center gap-1"><span class="w-3 h-2 rounded inline-block bg-[var(--acc)]"></span>Tegangan</span>
+      <span class="flex items-center gap-1"><span class="w-3 h-2 rounded inline-block bg-[var(--green)]"></span>Arus ÷10</span>
+      <span class="flex items-center gap-1"><span class="w-3 h-2 rounded inline-block bg-[var(--amber)]"></span>Daya ÷100</span>
+    </div>
+  </div>
+  <div id="chartArea" class="neu-in rounded-2xl p-2 h-36 flex items-end gap-0.5 overflow-hidden"></div>
+  <div class="flex justify-between text-[9px] text-[var(--t2)] font-600 mt-1 px-1">
+    <span>← lebih lama</span><span>sekarang →</span>
+  </div>
+</div>
+
+<!-- ROW 3: MOTOR STATUS + SPEED CONTROL -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
+
+  <!-- Motor visual -->
+  <div class="neu rounded-3xl p-5">
+    <div class="flex items-center gap-2 mb-4">
+      <div class="w-7 h-7 rounded-xl neu-sm flex items-center justify-center">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a855f7" stroke-width="2.5"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M6.34 17.66l-1.41 1.41M2 12h2m16 0h2M6.34 6.34L4.93 4.93m12.73 12.73l1.41 1.41M12 18v2M12 4V2"/></svg>
+      </div>
+      <h3 class="text-sm font-800 text-[var(--t1)]">Status Motor & Generator</h3>
+    </div>
+    <div class="neu-in rounded-2xl p-4">
+      <svg viewBox="0 0 300 120" class="w-full">
+        <rect x="10" y="35" width="70" height="50" rx="8" fill="#e0e5ec" stroke="#a3b1c6" stroke-width="1.5"/>
+        <text x="45" y="57" text-anchor="middle" font-family="Nunito" font-size="9" font-weight="800" fill="#3d4f6e">MOTOR 1</text>
+        <text x="45" y="70" text-anchor="middle" font-family="Nunito" font-size="8" fill="#7a8eac">Penggerak</text>
+        <g id="m1Spinner" transform="translate(45,85)">
+          <circle r="6" fill="none" stroke="#a3b1c6" stroke-width="1.5"/>
+          <line x1="-5" y1="0" x2="5" y2="0" stroke="#a3b1c6" stroke-width="1.5"/>
+          <line x1="0" y1="-5" x2="0" y2="5" stroke="#a3b1c6" stroke-width="1.5"/>
+        </g>
+        <path id="beltPath" d="M82 60 C110 40, 140 40, 160 60" fill="none" stroke="#d1d9e6" stroke-width="3" stroke-dasharray="5 3"/>
+        <text x="121" y="38" text-anchor="middle" font-family="Nunito" font-size="7" fill="#7a8eac">PULLEY</text>
+        <rect x="162" y="35" width="75" height="50" rx="8" fill="#e0e5ec" stroke="#a3b1c6" stroke-width="1.5"/>
+        <text x="199" y="55" text-anchor="middle" font-family="Nunito" font-size="9" font-weight="800" fill="#3d4f6e">MOTOR 2</text>
+        <text x="199" y="67" text-anchor="middle" font-family="Nunito" font-size="8" fill="#7a8eac">Generator</text>
+        <text x="199" y="78" text-anchor="middle" font-family="Nunito" font-size="7" fill="#22c55e">⚡ Output</text>
+        <g id="m2Spinner" transform="translate(199,90)">
+          <circle r="6" fill="none" stroke="#a3b1c6" stroke-width="1.5"/>
+          <line x1="-5" y1="0" x2="5" y2="0" stroke="#a3b1c6" stroke-width="1.5"/>
+          <line x1="0" y1="-5" x2="0" y2="5" stroke="#a3b1c6" stroke-width="1.5"/>
+        </g>
+        <line id="eLine" x1="238" y1="60" x2="290" y2="60" stroke="#22c55e" stroke-width="2" stroke-dasharray="6 3" class="energy-line off"/>
+        <text x="264" y="52" text-anchor="middle" font-family="Nunito" font-size="7" fill="#22c55e">output</text>
+        <line x1="10" y1="60" x2="0" y2="60" stroke="#ef4444" stroke-width="2"/>
+        <text x="2" y="50" font-family="Nunito" font-size="7" fill="#ef4444">12V</text>
+        <text x="2" y="58" font-family="Nunito" font-size="7" fill="#7a8eac">L298N</text>
+      </svg>
+    </div>
+    <!-- Stats row -->
+    <div class="grid grid-cols-2 gap-2 mt-3">
+      <div class="neu-in-sm rounded-xl px-3 py-2 text-center">
+        <div class="text-[9px] text-[var(--t2)] font-700 mb-1">Total Runtime</div>
+        <span id="runtimeEl" class="mono text-sm font-900 text-[var(--t1)]">00:00</span>
+      </div>
+      <div class="neu-in-sm rounded-xl px-3 py-2 text-center">
+        <div class="text-[9px] text-[var(--t2)] font-700 mb-1">Paket Diterima</div>
+        <span id="statPkt" class="mono text-sm font-900 text-[var(--t1)]">0</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Motor 1 Speed Control -->
+  <div class="neu rounded-3xl p-5">
+    <div class="flex items-center gap-2 mb-4">
+      <div class="w-7 h-7 rounded-xl neu-sm flex items-center justify-center">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4f8ef7" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      </div>
+      <h3 class="text-sm font-800 text-[var(--t1)]">Motor 1 — Speed Control</h3>
+      <div class="ml-auto"><span id="motorBadge" class="badge badge-gray">STOP</span></div>
+    </div>
+
+    <div class="neu-in rounded-2xl p-5 flex flex-col items-center gap-5">
+      <!-- Big power button -->
+      <button id="motorBtn" onclick="toggleMotor()" class="neu-btn w-24 h-24 rounded-full flex flex-col items-center justify-center gap-1 transition-all duration-200">
+        <svg id="motorIcon" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#a3b1c6" stroke-width="2" stroke-linecap="round">
+          <path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/>
+        </svg>
+        <span id="motorBtnLbl" class="text-[10px] font-800 text-[var(--t2)]">OFF</span>
+      </button>
+
+      <!-- Speed slider -->
+      <div class="w-full space-y-2">
+        <div class="flex justify-between items-center">
+          <span class="text-[10px] font-800 text-[var(--t2)] uppercase tracking-wider">Kecepatan PWM</span>
+          <span id="speedPct" class="mono text-sm font-900 text-[var(--acc)]">50%</span>
+        </div>
+        <input type="range" id="speedSlider" min="0" max="100" value="50" class="w-full" oninput="onSpeedChange(this.value)"/>
+        <div class="flex justify-between text-[9px] text-[var(--t2)] font-600">
+          <span>Lambat</span><span>Sedang</span><span>Cepat</span>
+        </div>
+      </div>
+
+      <!-- Speed presets -->
+      <div class="flex gap-2 w-full">
+        <button onclick="setSpeed(25)" class="neu-btn flex-1 rounded-xl py-2 text-[10px] font-800 text-[var(--t2)]">25%</button>
+        <button onclick="setSpeed(50)" class="neu-btn flex-1 rounded-xl py-2 text-[10px] font-800 text-[var(--t2)]">50%</button>
+        <button onclick="setSpeed(75)" class="neu-btn flex-1 rounded-xl py-2 text-[10px] font-800 text-[var(--t2)]">75%</button>
+        <button onclick="setSpeed(100)" class="neu-btn flex-1 rounded-xl py-2 text-[10px] font-800 text-[var(--acc)]">MAX</button>
+      </div>
+
+      <!-- PWM value display -->
+      <div class="neu-in-sm rounded-xl px-4 py-2 w-full text-center">
+        <div class="text-[9px] text-[var(--t2)] font-700 mb-1">PWM Value (0–255)</div>
+        <span id="pwmVal" class="mono text-lg font-900 text-[var(--t1)]">128</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ROW 4: 3 RELAY CARDS -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
+
+  <!-- RELAY 1 -->
+  <div class="neu rounded-3xl p-5">
+    <div class="flex items-center gap-2 mb-4">
+      <div class="w-7 h-7 rounded-xl neu-sm flex items-center justify-center">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+      </div>
+      <h3 class="text-sm font-800 text-[var(--t1)]">Relay 1</h3>
+      <div class="ml-auto flex items-center gap-2">
+        <div id="r1Led" class="led w-3 h-3"></div>
+        <span id="r1Badge" class="badge badge-gray">OFF</span>
+      </div>
+    </div>
+
+    <div class="neu-in rounded-2xl p-4 space-y-4">
+      <!-- Manual toggle -->
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-700 text-[var(--t2)]">Manual</span>
+        <div class="flex items-center gap-2">
+          <div id="r1Toggle" class="tog-track" onclick="toggleRelay(1)"><div class="tog-thumb"></div></div>
+          <span id="r1ToggleLbl" class="text-xs font-700 text-[var(--t2)]">OFF</span>
+        </div>
+      </div>
+
+      <!-- Auto threshold toggle -->
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-700 text-[var(--t2)]">Auto Threshold</span>
+        <div class="flex items-center gap-2">
+          <div id="r1AutoToggle" class="tog-track" onclick="toggleAutoRelay(1)"><div class="tog-thumb"></div></div>
+          <span id="r1AutoLbl" class="text-[10px] font-700 text-[var(--t2)]">OFF</span>
+        </div>
+      </div>
+
+      <!-- Threshold input -->
+      <div>
+        <label class="text-[10px] font-800 text-[var(--t2)] uppercase tracking-wider block mb-1">Threshold Tegangan</label>
+        <div class="flex items-center gap-2">
+          <input id="r1Thresh" type="number" value="1.0" min="0" max="30" step="0.1"
+            class="flex-1 neu-in-sm rounded-xl px-3 py-2 text-sm font-700 text-[var(--t1)] bg-[var(--bg)] outline-none mono text-center"/>
+          <span class="text-xs text-[var(--t2)] font-700">V</span>
+        </div>
+        <div class="text-[9px] text-[var(--t2)] font-600 mt-1">Relay ON jika tegangan ≥ nilai ini</div>
+      </div>
+
+      <!-- LED indicator visual -->
+      <div class="neu-in-sm rounded-xl px-3 py-2 flex items-center gap-3">
+        <div id="r1LedBig" class="w-5 h-5 rounded-full bg-[#c8d0dc] transition-all duration-300" style="box-shadow:inset 1px 1px 3px #fff"></div>
+        <div>
+          <div class="text-[10px] font-800 text-[var(--t1)]">LED 1</div>
+          <div id="r1LedStatus" class="text-[9px] text-[var(--t2)]">Mati</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RELAY 2 -->
+  <div class="neu rounded-3xl p-5">
+    <div class="flex items-center gap-2 mb-4">
+      <div class="w-7 h-7 rounded-xl neu-sm flex items-center justify-center">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+      </div>
+      <h3 class="text-sm font-800 text-[var(--t1)]">Relay 2</h3>
+      <div class="ml-auto flex items-center gap-2">
+        <div id="r2Led" class="led w-3 h-3"></div>
+        <span id="r2Badge" class="badge badge-gray">OFF</span>
+      </div>
+    </div>
+
+    <div class="neu-in rounded-2xl p-4 space-y-4">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-700 text-[var(--t2)]">Manual</span>
+        <div class="flex items-center gap-2">
+          <div id="r2Toggle" class="tog-track" onclick="toggleRelay(2)"><div class="tog-thumb"></div></div>
+          <span id="r2ToggleLbl" class="text-xs font-700 text-[var(--t2)]">OFF</span>
+        </div>
+      </div>
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-700 text-[var(--t2)]">Auto Threshold</span>
+        <div class="flex items-center gap-2">
+          <div id="r2AutoToggle" class="tog-track" onclick="toggleAutoRelay(2)"><div class="tog-thumb"></div></div>
+          <span id="r2AutoLbl" class="text-[10px] font-700 text-[var(--t2)]">OFF</span>
+        </div>
+      </div>
+      <div>
+        <label class="text-[10px] font-800 text-[var(--t2)] uppercase tracking-wider block mb-1">Threshold Tegangan</label>
+        <div class="flex items-center gap-2">
+          <input id="r2Thresh" type="number" value="2.0" min="0" max="30" step="0.1"
+            class="flex-1 neu-in-sm rounded-xl px-3 py-2 text-sm font-700 text-[var(--t1)] bg-[var(--bg)] outline-none mono text-center"/>
+          <span class="text-xs text-[var(--t2)] font-700">V</span>
+        </div>
+        <div class="text-[9px] text-[var(--t2)] font-600 mt-1">Relay ON jika tegangan ≥ nilai ini</div>
+      </div>
+      <div class="neu-in-sm rounded-xl px-3 py-2 flex items-center gap-3">
+        <div id="r2LedBig" class="w-5 h-5 rounded-full bg-[#c8d0dc] transition-all duration-300" style="box-shadow:inset 1px 1px 3px #fff"></div>
+        <div>
+          <div class="text-[10px] font-800 text-[var(--t1)]">LED 2</div>
+          <div id="r2LedStatus" class="text-[9px] text-[var(--t2)]">Mati</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RELAY 3 -->
+  <div class="neu rounded-3xl p-5">
+    <div class="flex items-center gap-2 mb-4">
+      <div class="w-7 h-7 rounded-xl neu-sm flex items-center justify-center">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a855f7" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      </div>
+      <h3 class="text-sm font-800 text-[var(--t1)]">Relay 3</h3>
+      <div class="ml-auto flex items-center gap-2">
+        <div id="r3Led" class="led w-3 h-3"></div>
+        <span id="r3Badge" class="badge badge-gray">OFF</span>
+      </div>
+    </div>
+
+    <div class="neu-in rounded-2xl p-4 space-y-4">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-700 text-[var(--t2)]">Manual</span>
+        <div class="flex items-center gap-2">
+          <div id="r3Toggle" class="tog-track" onclick="toggleRelay(3)"><div class="tog-thumb"></div></div>
+          <span id="r3ToggleLbl" class="text-xs font-700 text-[var(--t2)]">OFF</span>
+        </div>
+      </div>
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-700 text-[var(--t2)]">Auto Threshold</span>
+        <div class="flex items-center gap-2">
+          <div id="r3AutoToggle" class="tog-track" onclick="toggleAutoRelay(3)"><div class="tog-thumb"></div></div>
+          <span id="r3AutoLbl" class="text-[10px] font-700 text-[var(--t2)]">OFF</span>
+        </div>
+      </div>
+      <div>
+        <label class="text-[10px] font-800 text-[var(--t2)] uppercase tracking-wider block mb-1">Threshold Tegangan</label>
+        <div class="flex items-center gap-2">
+          <input id="r3Thresh" type="number" value="3.0" min="0" max="30" step="0.1"
+            class="flex-1 neu-in-sm rounded-xl px-3 py-2 text-sm font-700 text-[var(--t1)] bg-[var(--bg)] outline-none mono text-center"/>
+          <span class="text-xs text-[var(--t2)] font-700">V</span>
+        </div>
+        <div class="text-[9px] text-[var(--t2)] font-600 mt-1">Relay ON jika tegangan ≥ nilai ini</div>
+      </div>
+      <div class="neu-in-sm rounded-xl px-3 py-2 flex items-center gap-3">
+        <div id="r3LedBig" class="w-5 h-5 rounded-full bg-[#c8d0dc] transition-all duration-300" style="box-shadow:inset 1px 1px 3px #fff"></div>
+        <div>
+          <div class="text-[10px] font-800 text-[var(--t1)]">LED 3</div>
+          <div id="r3LedStatus" class="text-[9px] text-[var(--t2)]">Mati</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ROW 5: LOG + PUBLISH -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-5">
+  <div class="lg:col-span-2 neu rounded-3xl p-5 flex flex-col">
+    <div class="flex items-center justify-between mb-3">
+      <h3 class="text-sm font-800 text-[var(--t1)]">Log Histori</h3>
+      <button onclick="clearLog()" class="text-[10px] text-[var(--t2)] font-700 hover:text-red-400 transition-colors">Hapus</button>
+    </div>
+    <div id="logArea" class="neu-in rounded-2xl p-3 flex-1 overflow-y-auto max-h-52 space-y-0.5 log-wrap">
+      <div class="log-sys">[SYS] Inisialisasi…</div>
+    </div>
+  </div>
+  <div class="neu rounded-3xl p-5">
+    <h3 class="text-sm font-800 text-[var(--t1)] mb-3">Kirim Pesan Manual</h3>
+    <div class="space-y-3">
+      <input id="customMsg" placeholder='{"device":"relay1","value":1}' class="w-full neu-in rounded-xl px-3 py-2 text-xs font-600 text-[var(--t1)] bg-[var(--bg)] outline-none mono"/>
+      <button onclick="publishCustom()" class="neu-btn w-full rounded-xl py-2 text-xs font-800 text-[var(--acc)] flex items-center justify-center gap-2">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>Publish
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+// STATE
+const S = {
+  motor: false,
+  motorSpeed: 50,
+  relay:[false,false,false],
+  autoRelay:[false,false,false],
+  volt:0, curr:0, pow:0,
+  voltMin:null, voltMax:null,
+  currMin:null, currMax:null,
+  powMin:null,  powMax:null,
+  packets:0, history:[],
+  motorOnAt:null, totalRuntime:0,
+};
+
+const RELAY_COLORS = ['#22c55e','#f59e0b','#a855f7'];
+const RELAY_LED_CLASS = ['green','amber','purple'];
+
+// MQTT
+const clientId = 'smartem_'+Math.random().toString(36).substr(2,8);
+document.getElementById('clientIdEl').textContent = clientId;
+let client = null;
+
+function reconnectMQTT(){ if(client){try{client.end(true)}catch(e){}} initMQTT(); }
+
+function initMQTT(){
+  const sub = document.getElementById('subTopic').value.trim();
+  setStatus('Connecting…','idle');
+  addLog('Konek ke broker.emqx.io:8084…','info');
+  client = mqtt.connect('wss://broker.emqx.io:8084/mqtt',{clientId,clean:true,connectTimeout:10000,reconnectPeriod:5000});
+  client.on('connect',()=>{
+    setStatus('Terhubung ✓','ok');
+    addLog('Terhubung! ID: '+clientId,'ok');
+    client.subscribe(sub,{qos:1},(err)=>{ if(!err) addLog('Subscribe: '+sub,'ok'); else addLog('Subscribe gagal','err'); });
+  });
+  client.on('error',(e)=>{ setStatus('Error','err'); addLog('Error: '+e.message,'err'); });
+  client.on('offline',()=>{ setStatus('Offline','warn'); addLog('Koneksi terputus…','warn'); });
+  client.on('reconnect',()=>{ setStatus('Reconnecting…','warn'); });
+  client.on('message',(t,p)=>{
+    const raw=p.toString();
+    addLog('↓ '+raw.substr(0,80)+(raw.length>80?'…':''),'info');
+    parseSensor(raw);
+  });
+}
+
+function parseSensor(raw){
+  try{
+    const d=JSON.parse(raw);
+    const v=parseFloat(d.voltage??d.volt??d.v??0);
+    const c=parseFloat(d.current??d.curr??d.c??d.current_mA??0);
+    const p=parseFloat(d.power??d.pow??d.power_mW??(v*Math.abs(c)));
+    updateSensors(v,c,p);
+    // sync relay state from ESP
+    [1,2,3].forEach(i=>{
+      const key='relay'+i;
+      if(d[key]!==undefined){ S.relay[i-1]=!!d[key]; renderRelayCard(i); }
+    });
+    // FIX: sync auto_relay state from ESP
+    [1,2,3].forEach(i=>{
+      const key='auto_relay'+i;
+      if(d[key]!==undefined){
+        S.autoRelay[i-1]=!!d[key];
+        document.getElementById('r'+i+'AutoToggle').classList.toggle('on',S.autoRelay[i-1]);
+        document.getElementById('r'+i+'AutoLbl').textContent=S.autoRelay[i-1]?'ON':'OFF';
+      }
+    });
+    // sync motor
+    if(d.motor!==undefined){ S.motor=!!d.motor; renderMotor(); }
+  }catch(e){
+    const parts=raw.split(',');
+    if(parts.length>=2){ const v=parseFloat(parts[0]),c=parseFloat(parts[1]); if(!isNaN(v)&&!isNaN(c)) updateSensors(v,c,v*Math.abs(c)); }
+  }
+}
+
+function updateSensors(v,c,p){
+  S.volt=v; S.curr=c; S.pow=p; S.packets++;
+  if(S.voltMin===null||v<S.voltMin) S.voltMin=v;
+  if(S.voltMax===null||v>S.voltMax) S.voltMax=v;
+  if(S.currMin===null||c<S.currMin) S.currMin=c;
+  if(S.currMax===null||c>S.currMax) S.currMax=c;
+  if(S.powMin===null||p<S.powMin)  S.powMin=p;
+  if(S.powMax===null||p>S.powMax)  S.powMax=p;
+  S.history.push({v,c:Math.abs(c)/10,p:p/100});
+  if(S.history.length>40) S.history.shift();
+  // Auto threshold check
+  [1,2,3].forEach(i=>{
+    if(S.autoRelay[i-1]){
+      const thresh=parseFloat(document.getElementById('r'+i+'Thresh').value)||0;
+      const should=v>=thresh;
+      if(should!==S.relay[i-1]){ S.relay[i-1]=should; publishRelayCmd(i,should?1:0); renderRelayCard(i); addLog(`AUTO Relay${i} ${should?'ON':'OFF'} (${v.toFixed(2)}V ${should?'≥':'<'} ${thresh}V)`,'sys'); }
+    }
+  });
+  renderAll();
+}
+
+// MOTOR
+function toggleMotor(){
+  S.motor=!S.motor;
+  if(S.motor){ S.motorOnAt=Date.now(); addLog('MOTOR ON — speed '+S.motorSpeed+'%','ok'); }
+  else { if(S.motorOnAt){ S.totalRuntime+=Math.round((Date.now()-S.motorOnAt)/1000); S.motorOnAt=null; } addLog('MOTOR OFF','warn'); }
+  publishControl('motor',S.motor?1:0);
+  renderMotor();
+}
+
+function onSpeedChange(val){
+  S.motorSpeed=parseInt(val);
+  const pwm=Math.round(S.motorSpeed*2.55);
+  document.getElementById('speedPct').textContent=S.motorSpeed+'%';
+  document.getElementById('pwmVal').textContent=pwm;
+  if(S.motor) publishControl('speed',pwm);
+  updateMotorAnim();
+}
+
+function setSpeed(val){
+  document.getElementById('speedSlider').value=val;
+  onSpeedChange(val);
+}
+
+function renderMotor(){
+  const on=S.motor;
+  const btn=document.getElementById('motorBtn');
+  const icon=document.getElementById('motorIcon');
+  const lbl=document.getElementById('motorBtnLbl');
+  const badge=document.getElementById('motorBadge');
+  if(on){
+    btn.style.boxShadow='inset 3px 3px 8px #a3b1c6,inset -1px -1px 4px #fff';
+    icon.setAttribute('stroke','#22c55e');
+    lbl.textContent='ON'; lbl.style.color='#22c55e';
+    badge.className='badge badge-green'; badge.textContent='RUNNING';
+  } else {
+    btn.style.boxShadow='4px 4px 10px #a3b1c6,-4px -4px 10px #fff';
+    icon.setAttribute('stroke','#a3b1c6');
+    lbl.textContent='OFF'; lbl.style.color='';
+    badge.className='badge badge-gray'; badge.textContent='STOP';
+  }
+  updateMotorAnim();
+}
+
+function updateMotorAnim(){
+  const m1=document.getElementById('m1Spinner');
+  const m2=document.getElementById('m2Spinner');
+  const belt=document.getElementById('beltPath');
+  const dur=S.motor ? Math.max(0.2, 1.5-(S.motorSpeed/100)*1.2)+'s' : '';
+  if(S.motor){
+    m1.style.animation=`spin ${dur} linear infinite`;
+    m1.style.transformOrigin='45px 85px';
+    m2.style.animation=`spin ${dur} linear infinite`;
+    m2.style.transformOrigin='199px 90px';
+    belt.setAttribute('stroke','#4f8ef7');
+    belt.setAttribute('stroke-width','3');
+  } else {
+    m1.style.animation=''; m2.style.animation='';
+    belt.setAttribute('stroke','#d1d9e6');
+    belt.setAttribute('stroke-width','2');
+  }
+}
+
+// RELAY
+function toggleRelay(n){
+  if(S.autoRelay[n-1]){ addLog(`Relay${n}: nonaktifkan auto dulu sebelum manual`,'warn'); return; }
+  S.relay[n-1]=!S.relay[n-1];
+  publishRelayCmd(n,S.relay[n-1]?1:0);
+  addLog(`RELAY ${n} ${S.relay[n-1]?'ON':'OFF'} [manual]`, S.relay[n-1]?'ok':'warn');
+  renderRelayCard(n);
+}
+
+function toggleAutoRelay(n){
+  S.autoRelay[n-1]=!S.autoRelay[n-1];
+  document.getElementById('r'+n+'AutoToggle').classList.toggle('on',S.autoRelay[n-1]);
+  document.getElementById('r'+n+'AutoLbl').textContent=S.autoRelay[n-1]?'ON':'OFF';
+  // FIX: publish ke ESP supaya auto_relay state sinkron
+  const thresh=parseFloat(document.getElementById('r'+n+'Thresh').value)||0;
+  publishControl('auto_relay'+n, S.autoRelay[n-1]?1:0);
+  if(S.autoRelay[n-1]) publishControl('thresh'+n, thresh);
+  addLog(`AUTO Relay${n} ${S.autoRelay[n-1]?'AKTIF':'NONAKTIF'} | thresh=${thresh}V`,'sys');
+}
+
+function renderRelayCard(n){
+  const on=S.relay[n-1];
+  const color=RELAY_COLORS[n-1];
+  const ledCls=RELAY_LED_CLASS[n-1];
+  document.getElementById('r'+n+'Toggle').classList.toggle('on',on);
+  document.getElementById('r'+n+'ToggleLbl').textContent=on?'ON':'OFF';
+  document.getElementById('r'+n+'ToggleLbl').style.color=on?color:'';
+  const badge=document.getElementById('r'+n+'Badge');
+  badge.className='badge '+(on?'badge-'+(n===1?'green':n===2?'amber':'purple'):'badge-gray');
+  badge.textContent=on?'ON':'OFF';
+  const dot=document.getElementById('r'+n+'Led');
+  dot.className='led w-3 h-3 '+(on?ledCls:'');
+  const bigLed=document.getElementById('r'+n+'LedBig');
+  bigLed.style.background=on?color:'#c8d0dc';
+  bigLed.style.boxShadow=on?`0 0 10px ${color},0 0 25px ${color}55`:'inset 1px 1px 3px #fff';
+  document.getElementById('r'+n+'LedStatus').textContent=on?'Nyala':'Mati';
+}
+
+function publishRelayCmd(n,val){
+  publishControl('relay'+n,val);
+}
+
+// PUBLISH
+function publishControl(device,val){
+  if(!client||!client.connected){ addLog('Tidak terhubung!','err'); return; }
+  const topic=document.getElementById('pubTopic').value.trim();
+  const payload=JSON.stringify({device,value:val,ts:Date.now()});
+  client.publish(topic,payload,{qos:1});
+  addLog('↑ '+payload,'ok');
+}
+
+function publishCustom(){
+  const msg=document.getElementById('customMsg').value.trim();
+  if(!msg) return;
+  if(!client||!client.connected){ addLog('Tidak terhubung!','err'); return; }
+  const topic=document.getElementById('pubTopic').value.trim();
+  client.publish(topic,msg,{qos:1});
+  addLog('↑ '+msg,'ok');
+}
+
+// RENDER
+function renderAll(){
+  document.getElementById('voltVal').textContent=S.volt.toFixed(2);
+  document.getElementById('currVal').textContent=S.curr.toFixed(1);
+  document.getElementById('powVal').textContent=S.pow.toFixed(2);
+  const fmt=v=>v===null?'—':v.toFixed(2);
+  document.getElementById('voltMin').textContent=fmt(S.voltMin);
+  document.getElementById('voltMax').textContent=fmt(S.voltMax);
+  document.getElementById('currMin').textContent=fmt(S.currMin);
+  document.getElementById('currMax').textContent=fmt(S.currMax);
+  document.getElementById('powMin').textContent=fmt(S.powMin);
+  document.getElementById('powMax').textContent=fmt(S.powMax);
+  setGauge('voltArc',S.volt,20);
+  setGauge('currArc',S.curr,2000);
+  setGauge('powArc',S.pow,10000);
+  setBadge('voltBadge',S.volt,15,18);
+  setBadge('currBadge',S.curr,1500,1800);
+  setBadge('powBadge',S.pow,7000,9000);
+  const genActive=Math.abs(S.curr)>10;
+  document.getElementById('eLine').className='energy-line '+(genActive?'':'off');
+  document.getElementById('statPkt').textContent=S.packets;
+  renderChart();
+}
+
+function setGauge(id,val,max){
+  const pct=Math.min(val/max,1);
+  document.getElementById(id).style.strokeDashoffset=301.6*(1-pct);
+}
+
+function setBadge(id,val,warn,danger){
+  const el=document.getElementById(id);
+  if(val>=danger){ el.className='badge badge-red'; el.textContent='Tinggi'; }
+  else if(val>=warn){ el.className='badge badge-amber'; el.textContent='Waspada'; }
+  else if(val>0){ el.className='badge badge-green'; el.textContent='Normal'; }
+  else { el.className='badge badge-gray'; el.textContent='—'; }
+}
+
+function renderChart(){
+  const area=document.getElementById('chartArea');
+  const H=area.clientHeight||120;
+  const data=S.history;
+  if(!data.length) return;
+  const maxV=Math.max(...data.map(d=>d.v),1);
+  const maxC=Math.max(...data.map(d=>Math.abs(d.c)),1);
+  const maxP=Math.max(...data.map(d=>d.p),1);
+  area.innerHTML='';
+  data.forEach(d=>{
+    const col=document.createElement('div');
+    col.style.cssText='display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:1px;flex:1;height:100%';
+    const hv=Math.max(3,Math.round((d.v/maxV)*(H-8)));
+    const hc=Math.max(3,Math.round((Math.abs(d.c)/maxC)*(H-8)));
+    const hp=Math.max(3,Math.round((d.p/maxP)*(H-8)));
+    col.innerHTML=`<div style="display:flex;align-items:flex-end;gap:1px;height:${H-8}px">
+      <div style="width:4px;height:${hv}px;background:linear-gradient(180deg,#4f8ef7,#93c5fd);border-radius:2px 2px 0 0;opacity:.9"></div>
+      <div style="width:4px;height:${hc}px;background:linear-gradient(180deg,#22c55e,#86efac);border-radius:2px 2px 0 0;opacity:.9"></div>
+      <div style="width:4px;height:${hp}px;background:linear-gradient(180deg,#f59e0b,#fcd34d);border-radius:2px 2px 0 0;opacity:.9"></div>
+    </div>`;
+    area.appendChild(col);
+  });
+}
+
+function updateRuntime(){
+  let secs=S.totalRuntime;
+  if(S.motor&&S.motorOnAt) secs+=Math.round((Date.now()-S.motorOnAt)/1000);
+  const m=String(Math.floor(secs/60)).padStart(2,'0');
+  const s=String(secs%60).padStart(2,'0');
+  document.getElementById('runtimeEl').textContent=m+':'+s;
+}
+
+function setStatus(msg,state){
+  document.getElementById('mqttStatus').textContent=msg;
+  const led=document.getElementById('mqttLed');
+  led.className='led'+(state==='ok'?' green':state==='warn'?' amber':state==='err'?' red':'');
+}
+
+function addLog(msg,type='info'){
+  const area=document.getElementById('logArea');
+  const el=document.createElement('div');
+  el.className='log-'+type;
+  el.textContent='['+new Date().toLocaleTimeString('id-ID')+'] '+msg;
+  area.appendChild(el);
+  area.scrollTop=area.scrollHeight;
+  while(area.children.length>100) area.removeChild(area.firstChild);
+}
+
+function clearLog(){ document.getElementById('logArea').innerHTML=''; }
+
+setInterval(()=>{
+  document.getElementById('clockEl').textContent=new Date().toLocaleTimeString('id-ID');
+  updateRuntime();
+},1000);
+
+// Init slider display
+onSpeedChange(50);
+[1,2,3].forEach(renderRelayCard);
+renderMotor();
+initMQTT();
+</script>
+</body>
+</html>

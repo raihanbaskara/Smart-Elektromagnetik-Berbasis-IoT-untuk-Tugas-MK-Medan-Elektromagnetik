@@ -1,0 +1,27 @@
+# Compiled Arduino / PlatformIO files
+*.bin
+*.hex
+*.elf
+*.o
+*.d
+.pio/
+.pioenvs/
+.piolibdeps/
+
+# Editor / IDE configuration
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+
+# Office / Word lock files
+~$*.docx
+~$*.xlsx
+~$*.pptx
