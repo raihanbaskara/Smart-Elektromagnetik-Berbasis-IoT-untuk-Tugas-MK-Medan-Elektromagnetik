@@ -1,8 +1,5 @@
 # ⚡ Smart Electromagnetic Generator — IoT-Based Energy Monitoring & Switching System
 
-<p align="center">
-  <img src="docs/assets/system_block_diagram.jpg" alt="Smart EM Generator Architecture" width="850px" style="border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.15);" />
-</p>
 
 <p align="center">
   <a href="https://github.com/raihanbaskara/Smart-Elektromagnetik-Berbasis-IoT-untuk-Tugas-MK-Medan-Elektromagnetik/stargazers"><img src="https://img.shields.io/github/stars/raihanbaskara/Smart-Elektromagnetik-Berbasis-IoT-untuk-Tugas-MK-Medan-Elektromagnetik?style=for-the-badge&color=4f8ef7" alt="Stars"></a>

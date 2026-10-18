@@ -1,0 +1,5 @@
+# Tell GitHub Linguist to treat HTML dashboard as documentation/vendored
+# so C++ (ESP32 Firmware) remains highlighted as the primary core language
+*.html linguist-detectable=false
+docs/** linguist-documentation=true
+legacy/** linguist-vendored=true
